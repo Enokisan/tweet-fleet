@@ -1,14 +1,15 @@
 <template>
-  <div class="settings-modal" @click.self="$emit('close')">
+  <div class="settings-modal">
     <div class="modal-content">
-      <h2>設定</h2>
+      <div class="modal-header">
+        <h2>API認証</h2>
+        <button class="close-button" @click="$emit('close')">&times;</button>
+      </div>
       
-      <div class="settings-section">
-        <h3>X（Twitter）連携</h3>
-        <div class="connected-section">
-          <p>X連携の準備ができています</p>
-          <div v-if="!isAuthenticated" class="auth-section">
-            <p>ツイートを投稿するには、パスワード認証が必要です。</p>
+      <div class="modal-body">
+        <div class="auth-section">
+          <div v-if="!localIsAuthenticated">
+            <p class="auth-description">APIを使用するには認証が必要です</p>
             <div class="form-group">
               <input 
                 type="password" 
@@ -16,81 +17,30 @@
                 placeholder="パスワードを入力"
                 @keyup.enter="authenticate"
               >
-              <button class="connect-button" @click="authenticate">認証</button>
+              <button class="auth-button" @click="authenticate">認証</button>
             </div>
             <p v-if="authError" class="error-message">{{ authError }}</p>
           </div>
+          
           <div v-else class="auth-success">
             <p>認証済み（1時間有効）</p>
-            <button class="disconnect-button" @click="logout">ログアウト</button>
+            <button class="logout-button" @click="logout">ログアウト</button>
           </div>
         </div>
-      </div>
-      
-      <div class="settings-section">
-        <h3>GitHub連携</h3>
-        <div class="form-group">
-          <label for="github-repo">GitHubリポジトリ</label>
-          <input 
-            type="text" 
-            id="github-repo" 
-            :value="githubRepo" 
-            @input="$emit('update:githubRepo', $event.target.value)" 
-            placeholder="username/repository"
-          >
-        </div>
-        <div class="form-group">
-          <label for="github-path">ファイルパス</label>
-          <input 
-            type="text" 
-            id="github-path" 
-            :value="githubPath" 
-            @input="$emit('update:githubPath', $event.target.value)" 
-            placeholder="notes/fleeting-notes.md"
-          >
-        </div>
-        <div v-if="githubConnected" class="connection-status connected">
-          <i class="fas fa-check-circle"></i>
-          <span>GitHubと連携済み</span>
-          <button class="disconnect-button" @click="$emit('disconnect-github')">連携解除</button>
-        </div>
-        <div v-else class="connection-status">
-          <button class="connect-button" @click="$emit('connect-github')">GitHubと連携する</button>
-        </div>
-      </div>
-      
-      <div class="modal-buttons">
-        <button class="close-button" @click="$emit('close')">閉じる</button>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { useRouter } from 'vue-router'
-import xService from '../services/xService'
+import xService from '../services/xService';
+import githubService from '../services/githubService';
 
 export default {
   name: 'SettingsModal',
   props: {
-    xConnected: {
+    isAuthenticated: {
       type: Boolean,
-      required: true
-    },
-    xUsername: {
-      type: String,
-      default: ''
-    },
-    githubConnected: {
-      type: Boolean,
-      required: true
-    },
-    githubRepo: {
-      type: String,
-      required: true
-    },
-    githubPath: {
-      type: String,
       required: true
     }
   },
@@ -98,52 +48,54 @@ export default {
     return {
       password: '',
       authError: '',
-      isAuthenticated: false
+      localIsAuthenticated: xService.isAuthenticated && xService.isTokenValid()
     }
   },
   created() {
-    // xServiceの認証状態と同期
-    this.isAuthenticated = xService.isAuthenticated;
-  },
-  setup(props, { emit }) {
-    const router = useRouter()
-
-    const goToAuth = () => {
-      router.push('/auth')
+    // 初期化時に認証状態を確認
+    if (xService.isAuthenticated && xService.isTokenValid()) {
+      const token = xService.accessToken;
+      githubService.setAuthToken(token);
     }
-
-    return {
-      goToAuth
+  },
+  watch: {
+    isAuthenticated: {
+      immediate: true,
+      handler(newValue) {
+        this.localIsAuthenticated = newValue;
+      }
     }
   },
   methods: {
     async authenticate() {
+      if (!this.password) {
+        this.authError = 'パスワードを入力してください';
+        return;
+      }
+
       try {
         const success = await xService.authenticate(this.password);
         if (success) {
-          this.isAuthenticated = true;
-          this.authError = '';
+          // XサービスとGitHubサービスの両方にトークンを設定
+          const token = xService.accessToken;
+          githubService.setAuthToken(token);
+          this.localIsAuthenticated = true;
+          this.$emit('authenticated');
           this.password = '';
+          this.authError = '';
         } else {
-          this.authError = 'パスワードが正しくありません';
+          this.authError = '認証に失敗しました';
         }
       } catch (error) {
         console.error('認証エラー:', error);
-        this.authError = '認証に失敗しました';
+        this.authError = error.message || '認証に失敗しました';
       }
     },
     logout() {
       xService.logout();
-      this.isAuthenticated = false;
-    },
-    disconnectX() {
-      this.$emit('disconnect-x')
-    },
-    connectGithub() {
-      this.$emit('connect-github')
-    },
-    disconnectGithub() {
-      this.$emit('disconnect-github')
+      githubService.logout();
+      this.localIsAuthenticated = false;
+      this.$emit('unauthenticated');
     }
   }
 }
@@ -154,65 +106,74 @@ export default {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  right: 0;
+  bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 100;
+  z-index: 1000;
 }
 
 .modal-content {
   background-color: white;
-  border-radius: 12px;
-  padding: 24px;
+  border-radius: 8px;
   width: 90%;
-  max-width: 500px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  max-width: 400px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-.modal-content h2 {
-  margin-top: 0;
-  margin-bottom: 24px;
-  font-size: 22px;
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
   color: #333;
 }
 
-.settings-section {
-  margin-bottom: 24px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid #e1e8ed;
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
 }
 
-.settings-section:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
+.modal-body {
+  padding: 20px;
 }
 
-.settings-section h3 {
-  font-size: 16px;
-  margin-bottom: 12px;
-  color: #333;
+.auth-section {
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.auth-description {
+  margin: 0 0 16px 0;
+  color: #666;
+  font-size: 0.875rem;
 }
 
 .form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 14px;
-  color: #555;
+  display: flex;
+  gap: 8px;
 }
 
 .form-group input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #e1e8ed;
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .form-group input:focus {
@@ -221,114 +182,64 @@ export default {
   box-shadow: 0 0 0 2px rgba(29, 161, 242, 0.2);
 }
 
-.connection-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.connection-status.connected {
-  color: #34a853;
-}
-
-.connect-button {
+.auth-button {
+  padding: 8px 16px;
   background-color: #1da1f2;
   color: white;
   border: none;
-  border-radius: 50px;
-  padding: 8px 16px;
-  font-size: 14px;
+  border-radius: 4px;
+  font-size: 0.875rem;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
-.connect-button:hover {
-  background-color: #0c8bd9;
-}
-
-.disconnect-button {
-  background-color: transparent;
-  border: 1px solid #e1e8ed;
-  color: #666;
-  border-radius: 50px;
-  padding: 4px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  margin-left: auto;
-  transition: all 0.2s;
-}
-
-.disconnect-button:hover {
-  background-color: #f5f5f5;
-  color: #e53935;
-}
-
-.modal-buttons {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-
-.close-button {
-  background-color: #f5f5f5;
-  border: none;
-  color: #333;
-  border-radius: 50px;
-  padding: 8px 20px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.close-button:hover {
-  background-color: #e1e8ed;
-}
-
-.twitter-logo {
-  width: 20px;
-  height: 20px;
-}
-
-.connected-section {
-  margin-top: 1rem;
-  padding: 1rem;
-  background-color: #f5f5f5;
-  border-radius: 4px;
-}
-
-.connect-section {
-  margin-top: 1rem;
-}
-
-.auth-section {
-  margin-top: 1rem;
-  padding: 1rem;
-  background-color: #f8f9fa;
-  border-radius: 4px;
-}
-
-.auth-section .form-group {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.auth-section input {
-  flex: 1;
-}
-
-.auth-success {
-  margin-top: 1rem;
-  padding: 1rem;
-  background-color: #e8f5e9;
-  border-radius: 4px;
-  color: #2e7d32;
+.auth-button:hover {
+  background-color: #1a91da;
 }
 
 .error-message {
-  color: #d32f2f;
-  font-size: 14px;
-  margin-top: 8px;
+  margin: 8px 0 0 0;
+  color: #e53935;
+  font-size: 0.875rem;
+}
+
+.auth-success {
+  text-align: center;
+  color: #2e7d32;
+}
+
+.auth-success p {
+  margin: 0 0 12px 0;
+}
+
+.logout-button {
+  padding: 8px 16px;
+  background-color: white;
+  color: #666;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logout-button:hover {
+  background-color: #f5f5f5;
+  color: #e53935;
+  border-color: #e53935;
+}
+
+@media (max-width: 480px) {
+  .modal-content {
+    width: 95%;
+  }
+  
+  .modal-header {
+    padding: 12px 16px;
+  }
+  
+  .modal-body {
+    padding: 16px;
+  }
 }
 </style>

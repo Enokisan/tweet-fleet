@@ -11,6 +11,7 @@
         :characterCount="characterCount"
         :shareToX="shareToX"
         :saveToGithub="saveToGithub"
+        :isAuthenticated="xConnected && githubConnected"
         @update:shareToX="shareToX = $event"
         @update:saveToGithub="saveToGithub = $event"
         @save="saveNote"
@@ -36,6 +37,8 @@
       @disconnect-x="disconnectX"
       @connect-github="connectGithub"
       @disconnect-github="disconnectGithub"
+      @authenticated="handleAuthenticated"
+      @unauthenticated="handleUnauthenticated"
     />
   </div>
 </template>
@@ -45,6 +48,7 @@ import AppHeader from './components/AppHeader.vue';
 import NoteInput from './components/NoteInput.vue';
 import SettingsModal from './components/SettingsModal.vue';
 import xService from './services/xService';
+import githubService from './services/githubService';
 
 export default {
   name: 'App',
@@ -62,7 +66,7 @@ export default {
       statusMessage: '',
       statusType: 'success',
       showSettings: false,
-      xConnected: true,
+      xConnected: false,
       xUsername: '',
       githubConnected: false,
       githubRepo: '',
@@ -142,11 +146,18 @@ export default {
         return;
       }
       
-      // 実際にはGitHub APIを呼び出す処理を実装
-      console.log('GitHubに保存:', note.content, '場所:', this.githubRepo, this.githubPath);
-      
-      // テスト用に成功したふりをする
-      this.showStatusMessage('GitHubに保存しました！');
+      try {
+        const result = await githubService.saveNote(note.content);
+        
+        if (result.success) {
+          this.showStatusMessage('GitHubに保存しました！');
+        } else {
+          this.showStatusMessage(result.message, 'error');
+        }
+      } catch (error) {
+        console.error('GitHub保存エラー:', error);
+        this.showStatusMessage(error.message, 'error');
+      }
     },
     showStatusMessage(message, type = 'success') {
       this.statusMessage = message;
@@ -162,31 +173,34 @@ export default {
       if (settings) {
         const parsedSettings = JSON.parse(settings);
         
-        // X連携
-        if (parsedSettings.xConnected) {
-          this.xConnected = parsedSettings.xConnected;
+        // 認証状態の読み込み
+        if (parsedSettings.isAuthenticated) {
+          this.xConnected = true;
+          this.githubConnected = true;
           this.xUsername = parsedSettings.xUsername || '';
-        }
-        
-        // GitHub連携
-        if (parsedSettings.githubConnected) {
-          this.githubConnected = parsedSettings.githubConnected;
-          this.githubRepo = parsedSettings.githubRepo || '';
-          this.githubPath = parsedSettings.githubPath || '';
         }
       }
     },
     saveSettings() {
       // 設定をローカルストレージに保存
       const settings = {
-        xConnected: this.xConnected,
-        xUsername: this.xUsername,
-        githubConnected: this.githubConnected,
-        githubRepo: this.githubRepo,
-        githubPath: this.githubPath
+        isAuthenticated: this.xConnected && this.githubConnected,
+        xUsername: this.xUsername
       };
       
       localStorage.setItem('tweetfleet-settings', JSON.stringify(settings));
+    },
+    handleAuthenticated() {
+      this.xConnected = true;
+      this.githubConnected = true;
+      this.saveSettings();
+      this.showStatusMessage('認証が完了しました');
+    },
+    handleUnauthenticated() {
+      this.xConnected = false;
+      this.githubConnected = false;
+      this.saveSettings();
+      this.showStatusMessage('ログアウトしました');
     },
     connectX() {
       this.showStatusMessage('X連携は環境変数で設定されています。', 'error');

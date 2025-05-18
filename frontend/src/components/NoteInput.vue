@@ -1,39 +1,46 @@
 <!-- src/components/NoteInput.vue -->
 <template>
-  <div class="note-input-container">
-    <div class="input-header">
-      <h3>新しいフリーティングノート</h3>
-      <span class="character-count" :class="{ 'limit-reached': isLimitReached }">
-        {{ characterCount }}/140
-      </span>
-    </div>
-    
+  <div class="note-input">
     <textarea
-      :value="modelValue"
-      class="note-textarea"
-      placeholder="気づきや考えを140文字以内で記録しましょう..."
-      @input="onInput"
+      v-model="localContent"
       :maxlength="140"
+      placeholder="ノートを入力..."
+      @input="updateContent"
     ></textarea>
     
-    <div class="action-buttons">
+    <div class="input-footer">
+      <div class="character-count" :class="{ 'near-limit': characterCount > 120 }">
+        {{ characterCount }}/140
+      </div>
+      
       <div class="share-options">
-        <label class="share-option">
-          <input type="checkbox" :checked="shareToX" @change="$emit('update:shareToX', $event.target.checked)">
+        <label class="share-option" :class="{ disabled: !isAuthenticated }">
+          <input
+            type="checkbox"
+            :checked="shareToX"
+            :disabled="!isAuthenticated"
+            @change="$emit('update:shareToX', $event.target.checked)"
+          >
           <span>Xに投稿</span>
         </label>
-        <label class="share-option">
-          <input type="checkbox" :checked="saveToGithub" @change="$emit('update:saveToGithub', $event.target.checked)">
+        
+        <label class="share-option" :class="{ disabled: !isAuthenticated }">
+          <input
+            type="checkbox"
+            :checked="saveToGithub"
+            :disabled="!isAuthenticated"
+            @change="$emit('update:saveToGithub', $event.target.checked)"
+          >
           <span>GitHubに保存</span>
         </label>
       </div>
       
       <button 
         class="save-button" 
-        @click="$emit('save')" 
-        :disabled="!modelValue || modelValue.length > 140"
+        :disabled="!localContent || characterCount > 140"
+        @click="$emit('save')"
       >
-        投稿
+        保存
       </button>
     </div>
   </div>
@@ -45,90 +52,84 @@ export default {
   props: {
     modelValue: {
       type: String,
-      default: ''
+      required: true
     },
     characterCount: {
       type: Number,
-      default: 0
+      required: true
     },
     shareToX: {
       type: Boolean,
-      default: true
+      required: true
     },
     saveToGithub: {
       type: Boolean,
-      default: true
+      required: true
+    },
+    isAuthenticated: {
+      type: Boolean,
+      required: true
     }
   },
-  emits: ['update:modelValue', 'update:characterCount', 'update:shareToX', 'update:saveToGithub', 'save'],
-  computed: {
-    isLimitReached() {
-      return this.characterCount > 130;
+  data() {
+    return {
+      localContent: this.modelValue
+    }
+  },
+  watch: {
+    modelValue(newValue) {
+      this.localContent = newValue;
     }
   },
   methods: {
-    onInput(event) {
-      this.$emit('update:modelValue', event.target.value);
-      this.$emit('update:characterCount');
+    updateContent() {
+      this.$emit('update:modelValue', this.localContent);
+      this.$emit('update:characterCount', this.localContent.length);
     }
   }
 }
 </script>
 
 <style scoped>
-.note-input-container {
-  background-color: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-}
-
-.input-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.input-header h3 {
-  font-size: 18px;
-  margin: 0;
-  color: #333;
-}
-
-.character-count {
-  font-size: 14px;
-  color: #666;
-}
-
-.limit-reached {
-  color: #e53935;
-  font-weight: bold;
-}
-
-.note-textarea {
-  width: 100%;
-  min-height: 120px;
-  border: 1px solid #e1e8ed;
+.note-input {
+  background-color: white;
   border-radius: 8px;
-  padding: 12px;
-  font-size: 16px;
-  resize: vertical;
-  margin-bottom: 12px;
-  font-family: inherit;
-  transition: border-color 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 16px;
 }
 
-.note-textarea:focus {
+textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid #e1e8ed;
+  border-radius: 4px;
+  resize: vertical;
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+textarea:focus {
   outline: none;
   border-color: #1da1f2;
   box-shadow: 0 0 0 2px rgba(29, 161, 242, 0.2);
 }
 
-.action-buttons {
+.input-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
+}
+
+.character-count {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.character-count.near-limit {
+  color: #e53935;
 }
 
 .share-options {
@@ -140,25 +141,33 @@ export default {
   display: flex;
   align-items: center;
   gap: 6px;
+  font-size: 0.875rem;
+  color: #333;
   cursor: pointer;
-  font-size: 14px;
-  color: #555;
+}
+
+.share-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.share-option input[type="checkbox"] {
+  margin: 0;
 }
 
 .save-button {
+  padding: 8px 16px;
   background-color: #1da1f2;
   color: white;
   border: none;
-  border-radius: 50px;
-  padding: 8px 20px;
-  font-size: 14px;
-  font-weight: bold;
+  border-radius: 4px;
+  font-size: 0.875rem;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
-.save-button:hover {
-  background-color: #0c8bd9;
+.save-button:hover:not(:disabled) {
+  background-color: #1a91da;
 }
 
 .save-button:disabled {
@@ -167,18 +176,14 @@ export default {
 }
 
 @media (max-width: 480px) {
-  .action-buttons {
+  .input-footer {
     flex-direction: column;
-    gap: 16px;
+    align-items: stretch;
+    gap: 12px;
   }
   
   .share-options {
     justify-content: space-between;
-    width: 100%;
-  }
-  
-  .save-button {
-    width: 100%;
   }
 }
 </style>

@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     TWITTER_ACCESS_TOKEN: Optional[str] = None
     TWITTER_ACCESS_TOKEN_SECRET: Optional[str] = None
     
+    # GitHub設定
+    GITHUB_TOKEN: Optional[str] = None
+    GITHUB_REPO: Optional[str] = None
+    GITHUB_DIRECTORY_PATH: str = ""
+    
     class Config:
         env_file = str(Path(__file__).parent.parent.parent / ".env")
         env_file_encoding = "utf-8"

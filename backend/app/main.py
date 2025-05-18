@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api.v1.endpoints import tweets, auth
+from .api.v1.endpoints import tweets, auth, github
 from .core.config import get_settings
 
 settings = get_settings()
@@ -23,6 +23,7 @@ app.add_middleware(
 # ルーターの追加
 app.include_router(tweets.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
+app.include_router(github.router, prefix="/api")
 
 @app.get("/")
 async def root():
