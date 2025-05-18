@@ -7,6 +7,20 @@ class XService {
     this.isAuthenticated = false;
     this.tokenExpiry = null;
     
+    // ローカルストレージから認証情報を読み込む
+    const settings = localStorage.getItem('tweetfleet-settings');
+    if (settings) {
+      const parsedSettings = JSON.parse(settings);
+      if (parsedSettings.isAuthenticated) {
+        // トークンの有効期限を確認
+        const tokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1時間後に設定
+        if (new Date() < tokenExpiry) {
+          this.isAuthenticated = true;
+          this.tokenExpiry = tokenExpiry;
+        }
+      }
+    }
+    
     // 初期化時の設定値をログ出力
     console.log('API設定:', {
       apiUrl: this.apiUrl,

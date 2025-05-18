@@ -48,25 +48,35 @@ export default {
     return {
       password: '',
       authError: '',
-      localIsAuthenticated: xService.isAuthenticated && xService.isTokenValid()
+      localIsAuthenticated: false
     }
   },
   created() {
     // 初期化時に認証状態を確認
-    if (xService.isAuthenticated && xService.isTokenValid()) {
-      const token = xService.accessToken;
-      githubService.setAuthToken(token);
-    }
+    this.updateAuthState();
   },
   watch: {
     isAuthenticated: {
       immediate: true,
       handler(newValue) {
-        this.localIsAuthenticated = newValue;
+        this.updateAuthState();
       }
     }
   },
   methods: {
+    updateAuthState() {
+      // XサービスとGitHubサービスの認証状態を確認
+      const xAuth = xService.isAuthenticated && xService.isTokenValid();
+      const githubAuth = githubService.isAuthenticated && githubService.isTokenValid();
+      
+      // 両方のサービスが認証済みの場合のみtrue
+      this.localIsAuthenticated = xAuth && githubAuth;
+      
+      // 認証済みの場合、GitHubサービスにトークンを設定
+      if (this.localIsAuthenticated && xService.accessToken) {
+        githubService.setAuthToken(xService.accessToken);
+      }
+    },
     async authenticate() {
       if (!this.password) {
         this.authError = 'パスワードを入力してください';
@@ -79,7 +89,7 @@ export default {
           // XサービスとGitHubサービスの両方にトークンを設定
           const token = xService.accessToken;
           githubService.setAuthToken(token);
-          this.localIsAuthenticated = true;
+          this.updateAuthState();
           this.$emit('authenticated');
           this.password = '';
           this.authError = '';
@@ -94,7 +104,7 @@ export default {
     logout() {
       xService.logout();
       githubService.logout();
-      this.localIsAuthenticated = false;
+      this.updateAuthState();
       this.$emit('unauthenticated');
     }
   }

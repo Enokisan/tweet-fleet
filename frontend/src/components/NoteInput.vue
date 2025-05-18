@@ -17,30 +17,32 @@
         <label class="share-option" :class="{ disabled: !isAuthenticated }">
           <input
             type="checkbox"
-            :checked="shareToX"
+            :checked="isAuthenticated && shareToX"
             :disabled="!isAuthenticated"
-            @change="$emit('update:shareToX', $event.target.checked)"
+            @change="handleCheckboxChange('shareToX', $event)"
           >
           <span>Xに投稿</span>
+          <span v-if="!isAuthenticated" class="auth-required">(認証が必要)</span>
         </label>
         
         <label class="share-option" :class="{ disabled: !isAuthenticated }">
           <input
             type="checkbox"
-            :checked="saveToGithub"
+            :checked="isAuthenticated && saveToGithub"
             :disabled="!isAuthenticated"
-            @change="$emit('update:saveToGithub', $event.target.checked)"
+            @change="handleCheckboxChange('saveToGithub', $event)"
           >
           <span>GitHubに保存</span>
+          <span v-if="!isAuthenticated" class="auth-required">(認証が必要)</span>
         </label>
       </div>
       
       <button 
         class="save-button" 
-        :disabled="!localContent || characterCount > 140"
+        :disabled="!localContent || characterCount > 140 || !isAuthenticated"
         @click="$emit('save')"
       >
-        保存
+        {{ isAuthenticated ? '保存' : '認証が必要' }}
       </button>
     </div>
   </div>
@@ -85,6 +87,13 @@ export default {
     updateContent() {
       this.$emit('update:modelValue', this.localContent);
       this.$emit('update:characterCount', this.localContent.length);
+    },
+    handleCheckboxChange(type, event) {
+      if (!this.isAuthenticated) {
+        event.preventDefault();
+        return;
+      }
+      this.$emit(`update:${type}`, event.target.checked);
     }
   }
 }
@@ -96,6 +105,7 @@ export default {
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   padding: 16px;
+  width: 100%;
 }
 
 textarea {
@@ -108,6 +118,7 @@ textarea {
   font-size: 1rem;
   line-height: 1.5;
   margin-bottom: 12px;
+  background-color: #fff;
 }
 
 textarea:focus {
@@ -121,11 +132,13 @@ textarea:focus {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .character-count {
   font-size: 0.875rem;
   color: #666;
+  white-space: nowrap;
 }
 
 .character-count.near-limit {
@@ -135,6 +148,9 @@ textarea:focus {
 .share-options {
   display: flex;
   gap: 16px;
+  flex-wrap: wrap;
+  flex: 1;
+  justify-content: flex-end;
 }
 
 .share-option {
@@ -144,15 +160,30 @@ textarea:focus {
   font-size: 0.875rem;
   color: #333;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .share-option.disabled {
-  opacity: 0.5;
+  opacity: 0.7;
   cursor: not-allowed;
+  pointer-events: none;
+  user-select: none;
 }
 
 .share-option input[type="checkbox"] {
   margin: 0;
+  cursor: pointer;
+}
+
+.share-option.disabled input[type="checkbox"] {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.auth-required {
+  font-size: 0.75rem;
+  color: #666;
+  font-style: italic;
 }
 
 .save-button {
@@ -163,7 +194,9 @@ textarea:focus {
   border-radius: 4px;
   font-size: 0.875rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  min-width: 100px;
+  white-space: nowrap;
 }
 
 .save-button:hover:not(:disabled) {
@@ -176,6 +209,16 @@ textarea:focus {
 }
 
 @media (max-width: 480px) {
+  .note-input {
+    padding: 12px;
+  }
+  
+  textarea {
+    min-height: 80px;
+    font-size: 0.9375rem;
+    padding: 10px;
+  }
+  
   .input-footer {
     flex-direction: column;
     align-items: stretch;
@@ -184,6 +227,51 @@ textarea:focus {
   
   .share-options {
     justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+  }
+  
+  .share-option {
+    font-size: 0.8125rem;
+  }
+  
+  .save-button {
+    width: 100%;
+    padding: 10px;
+    font-size: 0.9375rem;
+  }
+  
+  .character-count {
+    font-size: 0.8125rem;
+  }
+  
+  .auth-required {
+    font-size: 0.6875rem;
+  }
+}
+
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+  .note-input {
+    background-color: #192734;
+  }
+  
+  textarea {
+    background-color: #253341;
+    border-color: #38444d;
+    color: #fff;
+  }
+  
+  .share-option {
+    color: #fff;
+  }
+  
+  .character-count {
+    color: #8899a6;
+  }
+  
+  .auth-required {
+    color: #8899a6;
   }
 }
 </style>

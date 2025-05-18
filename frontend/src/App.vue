@@ -242,13 +242,24 @@ body {
   background-color: #f5f8fa;
   color: #333;
   line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
 }
 
 /* アプリケーション全体のスタイル */
 .tweet-fleet {
+  width: 100%;
   max-width: 600px;
   margin: 0 auto;
-  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: auto;
+  gap: 20px;
 }
 
 /* メインコンテンツ */
@@ -256,6 +267,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  width: 100%;
+  align-items: center;
 }
 
 /* ステータスメッセージ */
@@ -266,6 +279,7 @@ body {
   border-radius: 4px;
   font-size: 14px;
   color: #333;
+  width: 100%;
 }
 
 .status-message.error {
@@ -275,12 +289,42 @@ body {
 
 /* レスポンシブ対応 */
 @media (max-width: 480px) {
+  body {
+    padding: 12px;
+  }
+  
   .tweet-fleet {
-    padding: 16px;
+    gap: 16px;
   }
   
   .app-main {
-    margin-top: 20px;
+    gap: 16px;
+  }
+  
+  .status-message {
+    font-size: 13px;
+    padding: 10px;
+  }
+}
+
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #15202b;
+    color: #fff;
+  }
+  
+  .tweet-fleet {
+    background-color: #15202b;
+  }
+  
+  .status-message {
+    background-color: rgba(29, 161, 242, 0.1);
+    color: #fff;
+  }
+  
+  .status-message.error {
+    background-color: rgba(229, 57, 53, 0.1);
   }
 }
 </style>
