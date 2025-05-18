@@ -3,42 +3,67 @@ import axios from 'axios';
 class XService {
   constructor() {
     this.apiUrl = import.meta.env.VITE_BACKEND_API_URL;
-    this.adminToken = import.meta.env.VITE_X_ADMIN_TOKEN;
+    this.accessToken = null;
     this.isAuthenticated = false;
+    this.tokenExpiry = null;
     
     // 初期化時の設定値をログ出力
     console.log('API設定:', {
       apiUrl: this.apiUrl,
-      hasAdminToken: !!this.adminToken
+      isAuthenticated: this.isAuthenticated
     });
   }
 
-  authenticate(password) {
-    if (password === import.meta.env.VITE_X_PASSWORD) {
+  async authenticate(password) {
+    try {
+      console.log('認証リクエスト開始:', {
+        apiUrl: `${this.apiUrl}/api/auth/login`,
+        password: password ? '****' : undefined
+      });
+
+      const response = await axios.post(
+        `${this.apiUrl}/api/auth/login`,
+        { password }
+      );
+      
+      this.accessToken = response.data.access_token;
       this.isAuthenticated = true;
+      // トークンの有効期限を1時間後に設定
+      this.tokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
       return true;
+    } catch (error) {
+      console.error('認証エラー:', error);
+      return false;
     }
-    return false;
   }
 
   logout() {
+    this.accessToken = null;
     this.isAuthenticated = false;
+    this.tokenExpiry = null;
+  }
+
+  isTokenValid() {
+    if (!this.tokenExpiry) return false;
+    return new Date() < this.tokenExpiry;
   }
 
   async postTweet(content) {
-    if (!this.adminToken) {
-      throw new Error('管理者認証が必要です');
+    if (!this.isAuthenticated || !this.accessToken) {
+      throw new Error('パスワード認証が必要です');
     }
 
-    if (!this.isAuthenticated) {
-      throw new Error('パスワード認証が必要です');
+    if (!this.isTokenValid()) {
+      this.logout();
+      throw new Error('トークンの有効期限が切れています');
     }
 
     try {
       console.log('ツイート投稿開始:', {
         apiUrl: `${this.apiUrl}/api/tweets`,
         content: content,
-        adminToken: this.adminToken
+        isAuthenticated: this.isAuthenticated,
+        tokenExpiry: this.tokenExpiry
       });
 
       const response = await axios.post(
@@ -48,7 +73,7 @@ class XService {
         },
         {
           headers: {
-            'X-Admin-Token': this.adminToken,
+            'Authorization': `Bearer ${this.accessToken}`,
             'Content-Type': 'application/json'
           }
         }
@@ -65,7 +90,8 @@ class XService {
       });
 
       if (error.response?.status === 401) {
-        throw new Error('管理者認証が必要です');
+        this.logout();
+        throw new Error('認証が必要です');
       }
       
       throw new Error(`ツイートの投稿に失敗しました: ${error.message}`);

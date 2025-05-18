@@ -1,15 +1,45 @@
-from fastapi import HTTPException, Security
-from fastapi.security.api_key import APIKeyHeader
+from fastapi import HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from .config import get_settings
+import jwt
+from datetime import datetime, timedelta
 
-API_KEY_NAME = "X-Admin-Token"
-api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
+settings = get_settings()
 
-async def get_api_key(api_key_header: str = Security(api_key_header)):
-    settings = get_settings()
-    if api_key_header != settings.ADMIN_TOKEN:
+# JWT設定
+JWT_SECRET = settings.JWT_SECRET
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION_DELTA = timedelta(hours=1)
+
+security = HTTPBearer()
+
+def create_access_token() -> str:
+    """
+    JWTトークンを生成
+    """
+    expire = datetime.utcnow() + JWT_EXPIRATION_DELTA
+    to_encode = {
+        "exp": expire,
+        "iat": datetime.utcnow(),
+        "sub": "admin"
+    }
+    return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """
+    JWTトークンを検証
+    """
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=401,
-            detail="Invalid API Key"
+            detail="トークンの有効期限が切れています"
         )
-    return api_key_header 
+    except jwt.JWTError:
+        raise HTTPException(
+            status_code=401,
+            detail="無効なトークンです"
+        ) 

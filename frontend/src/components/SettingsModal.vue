@@ -5,12 +5,8 @@
       
       <div class="settings-section">
         <h3>X（Twitter）連携</h3>
-        <div v-if="!xConnected" class="connect-section">
-          <p>X連携は環境変数で設定されています。</p>
-          <p class="error-message">環境変数 VITE_X_ADMIN_TOKEN を設定してください。</p>
-        </div>
-        <div v-else class="connected-section">
-          <p>X連携が有効です（環境変数で設定）</p>
+        <div class="connected-section">
+          <p>X連携の準備ができています</p>
           <div v-if="!isAuthenticated" class="auth-section">
             <p>ツイートを投稿するには、パスワード認証が必要です。</p>
             <div class="form-group">
@@ -25,7 +21,7 @@
             <p v-if="authError" class="error-message">{{ authError }}</p>
           </div>
           <div v-else class="auth-success">
-            <p>認証済み</p>
+            <p>認証済み（1時間有効）</p>
             <button class="disconnect-button" @click="logout">ログアウト</button>
           </div>
         </div>
@@ -105,6 +101,10 @@ export default {
       isAuthenticated: false
     }
   },
+  created() {
+    // xServiceの認証状態と同期
+    this.isAuthenticated = xService.isAuthenticated;
+  },
   setup(props, { emit }) {
     const router = useRouter()
 
@@ -117,13 +117,19 @@ export default {
     }
   },
   methods: {
-    authenticate() {
-      if (xService.authenticate(this.password)) {
-        this.isAuthenticated = true;
-        this.authError = '';
-        this.password = '';
-      } else {
-        this.authError = 'パスワードが正しくありません';
+    async authenticate() {
+      try {
+        const success = await xService.authenticate(this.password);
+        if (success) {
+          this.isAuthenticated = true;
+          this.authError = '';
+          this.password = '';
+        } else {
+          this.authError = 'パスワードが正しくありません';
+        }
+      } catch (error) {
+        console.error('認証エラー:', error);
+        this.authError = '認証に失敗しました';
       }
     },
     logout() {

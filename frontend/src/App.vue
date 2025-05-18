@@ -60,9 +60,10 @@ export default {
       shareToX: true,
       saveToGithub: true,
       statusMessage: '',
+      statusType: 'success',
       showSettings: false,
-      xConnected: !!import.meta.env.VITE_X_ADMIN_TOKEN,
-      xUsername: '管理者',
+      xConnected: true,
+      xUsername: '',
       githubConnected: false,
       githubRepo: '',
       githubPath: ''
@@ -110,7 +111,7 @@ export default {
           xConnected: this.xConnected,
           xUsername: this.xUsername
         });
-        this.showStatusMessage('X連携が無効です。環境変数を確認してください。', 'error');
+        this.showStatusMessage('X連携の準備ができていません。設定から環境変数を確認してください。', 'error');
         return;
       }
       
@@ -127,6 +128,9 @@ export default {
         if (error.message === 'パスワード認証が必要です') {
           this.showSettings = true;
           this.showStatusMessage('ツイートを投稿するには、設定からパスワード認証が必要です。', 'error');
+        } else if (error.message === 'トークンの有効期限が切れています') {
+          this.showSettings = true;
+          this.showStatusMessage('認証の有効期限が切れました。再度パスワード認証を行ってください。', 'error');
         } else {
           this.showStatusMessage(`Xへの投稿に失敗しました: ${error.message}`, 'error');
         }

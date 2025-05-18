@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     FRONTEND_URL: Optional[str] = None
     
     # 管理者認証
-    ADMIN_TOKEN: str
+    ADMIN_PASSWORD: str
+    JWT_SECRET: str
     
     # Twitter API設定
     TWITTER_API_URL: str = "https://api.twitter.com/2"  # デフォルト値として残す
@@ -25,6 +26,9 @@ class Settings(BaseSettings):
         env_file = str(Path(__file__).parent.parent.parent / ".env")
         env_file_encoding = "utf-8"
         case_sensitive = False  # 環境変数名の大文字小文字を区別しない
+        env_prefix = ""  # 環境変数のプレフィックスを空に
+        env_nested_delimiter = "__"  # ネストされた環境変数の区切り文字
+        extra = "ignore"  # 未定義の環境変数は無視
 
 @lru_cache()
 def get_settings() -> Settings:
