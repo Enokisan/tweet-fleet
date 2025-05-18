@@ -3,7 +3,7 @@
   <header class="app-header">
     <div class="header-left">
       <div class="logo-space">
-        <!-- ロゴ画像を配置するスペース -->
+        <img src="../assets/styles/logo.png" alt="TweetFleet Logo" width="40" height="40">
       </div>
       <div class="logo">
         <h1>TweetFleet</h1>
