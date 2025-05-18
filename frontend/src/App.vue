@@ -61,30 +61,16 @@ export default {
       saveToGithub: true,
       statusMessage: '',
       showSettings: false,
-      
-      // X連携
-      xConnected: false,
-      xUsername: '',
-      
-      // GitHub連携
+      xConnected: !!import.meta.env.VITE_X_ADMIN_TOKEN,
+      xUsername: '管理者',
       githubConnected: false,
-      githubRepo: import.meta.env.VITE_GITHUB_REPO || '',
-      githubToken: import.meta.env.VITE_GITHUB_TOKEN || '',
-      githubApiUrl: import.meta.env.VITE_GITHUB_API_URL || '',
-      githubUsername: import.meta.env.VITE_GITHUB_OWNER || '',
-      githubPath: import.meta.env.VITE_GITHUB_PATH || ''
+      githubRepo: '',
+      githubPath: ''
     }
   },
   created() {
     // 設定を読み込む
     this.loadSettings();
-    
-    // 環境変数のデバッグ出力
-    console.log('環境変数の確認:', {
-      BACKEND_API_URL: import.meta.env.VITE_BACKEND_API_URL,
-      GITHUB_REPO: import.meta.env.VITE_GITHUB_REPO,
-      hasGithubToken: !!import.meta.env.VITE_GITHUB_TOKEN,
-    });
   },
   methods: {
     updateCharacterCount() {
@@ -124,7 +110,7 @@ export default {
           xConnected: this.xConnected,
           xUsername: this.xUsername
         });
-        this.showStatusMessage('Xと連携してください', 'error');
+        this.showStatusMessage('X連携が無効です。環境変数を確認してください。', 'error');
         return;
       }
       
@@ -138,7 +124,12 @@ export default {
         this.showStatusMessage('Xに投稿しました！');
       } catch (error) {
         console.error('X投稿エラー:', error);
-        this.showStatusMessage(`Xへの投稿に失敗しました: ${error.message}`, 'error');
+        if (error.message === 'パスワード認証が必要です') {
+          this.showSettings = true;
+          this.showStatusMessage('ツイートを投稿するには、設定からパスワード認証が必要です。', 'error');
+        } else {
+          this.showStatusMessage(`Xへの投稿に失敗しました: ${error.message}`, 'error');
+        }
       }
     },
     async saveNoteToGithub(note) {
@@ -194,31 +185,10 @@ export default {
       localStorage.setItem('tweetfleet-settings', JSON.stringify(settings));
     },
     connectX() {
-      // 管理者認証トークンの設定
-      const adminToken = prompt('管理者認証トークンを入力してください');
-      if (!adminToken) {
-        this.showStatusMessage('認証トークンが必要です', 'error');
-        return;
-      }
-
-      // トークンの検証（実際のバックエンドではここでAPIを呼び出して検証）
-      if (adminToken.length < 8) {
-        this.showStatusMessage('無効な認証トークンです', 'error');
-        return;
-      }
-
-      xService.setAdminToken(adminToken);
-      this.xConnected = true;
-      this.xUsername = 'admin';
-      this.saveSettings();
-      this.showStatusMessage('Xと連携しました！');
+      this.showStatusMessage('X連携は環境変数で設定されています。', 'error');
     },
     disconnectX() {
-      this.xConnected = false;
-      this.xUsername = '';
-      localStorage.removeItem('admin-token');
-      this.saveSettings();
-      this.showStatusMessage('X連携を解除しました');
+      this.showStatusMessage('X連携は環境変数で設定されています。', 'error');
     },
     connectGithub() {
       if (!this.githubRepo || !this.githubPath) {

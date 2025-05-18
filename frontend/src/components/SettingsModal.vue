@@ -4,14 +4,30 @@
       <h2>設定</h2>
       
       <div class="settings-section">
-        <h3>Xアカウント連携</h3>
-        <div v-if="xConnected" class="connection-status connected">
-          <i class="fas fa-check-circle"></i>
-          <span>管理者として連携済み</span>
-          <button class="disconnect-button" @click="$emit('disconnect-x')">連携解除</button>
+        <h3>X（Twitter）連携</h3>
+        <div v-if="!xConnected" class="connect-section">
+          <p>X連携は環境変数で設定されています。</p>
+          <p class="error-message">環境変数 VITE_X_ADMIN_TOKEN を設定してください。</p>
         </div>
-        <div v-else class="connection-status">
-          <button class="connect-button" @click="$emit('connect-x')">管理者として連携する</button>
+        <div v-else class="connected-section">
+          <p>X連携が有効です（環境変数で設定）</p>
+          <div v-if="!isAuthenticated" class="auth-section">
+            <p>ツイートを投稿するには、パスワード認証が必要です。</p>
+            <div class="form-group">
+              <input 
+                type="password" 
+                v-model="password" 
+                placeholder="パスワードを入力"
+                @keyup.enter="authenticate"
+              >
+              <button class="connect-button" @click="authenticate">認証</button>
+            </div>
+            <p v-if="authError" class="error-message">{{ authError }}</p>
+          </div>
+          <div v-else class="auth-success">
+            <p>認証済み</p>
+            <button class="disconnect-button" @click="logout">ログアウト</button>
+          </div>
         </div>
       </div>
       
@@ -55,12 +71,15 @@
 </template>
 
 <script>
+import { useRouter } from 'vue-router'
+import xService from '../services/xService'
+
 export default {
   name: 'SettingsModal',
   props: {
     xConnected: {
       type: Boolean,
-      default: false
+      required: true
     },
     xUsername: {
       type: String,
@@ -68,26 +87,59 @@ export default {
     },
     githubConnected: {
       type: Boolean,
-      default: false
+      required: true
     },
     githubRepo: {
       type: String,
-      default: ''
+      required: true
     },
     githubPath: {
       type: String,
-      default: ''
+      required: true
     }
   },
-  emits: [
-    'close', 
-    'connect-x', 
-    'disconnect-x', 
-    'connect-github', 
-    'disconnect-github',
-    'update:githubRepo',
-    'update:githubPath'
-  ]
+  data() {
+    return {
+      password: '',
+      authError: '',
+      isAuthenticated: false
+    }
+  },
+  setup(props, { emit }) {
+    const router = useRouter()
+
+    const goToAuth = () => {
+      router.push('/auth')
+    }
+
+    return {
+      goToAuth
+    }
+  },
+  methods: {
+    authenticate() {
+      if (xService.authenticate(this.password)) {
+        this.isAuthenticated = true;
+        this.authError = '';
+        this.password = '';
+      } else {
+        this.authError = 'パスワードが正しくありません';
+      }
+    },
+    logout() {
+      xService.logout();
+      this.isAuthenticated = false;
+    },
+    disconnectX() {
+      this.$emit('disconnect-x')
+    },
+    connectGithub() {
+      this.$emit('connect-github')
+    },
+    disconnectGithub() {
+      this.$emit('disconnect-github')
+    }
+  }
 }
 </script>
 
@@ -225,5 +277,52 @@ export default {
 
 .close-button:hover {
   background-color: #e1e8ed;
+}
+
+.twitter-logo {
+  width: 20px;
+  height: 20px;
+}
+
+.connected-section {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.connect-section {
+  margin-top: 1rem;
+}
+
+.auth-section {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.auth-section .form-group {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.auth-section input {
+  flex: 1;
+}
+
+.auth-success {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #e8f5e9;
+  border-radius: 4px;
+  color: #2e7d32;
+}
+
+.error-message {
+  color: #d32f2f;
+  font-size: 14px;
+  margin-top: 8px;
 }
 </style>

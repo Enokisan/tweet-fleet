@@ -3,7 +3,8 @@ import axios from 'axios';
 class XService {
   constructor() {
     this.apiUrl = import.meta.env.VITE_BACKEND_API_URL;
-    this.adminToken = localStorage.getItem('admin-token');
+    this.adminToken = import.meta.env.VITE_X_ADMIN_TOKEN;
+    this.isAuthenticated = false;
     
     // 初期化時の設定値をログ出力
     console.log('API設定:', {
@@ -12,9 +13,16 @@ class XService {
     });
   }
 
-  setAdminToken(token) {
-    this.adminToken = token;
-    localStorage.setItem('admin-token', token);
+  authenticate(password) {
+    if (password === import.meta.env.VITE_X_PASSWORD) {
+      this.isAuthenticated = true;
+      return true;
+    }
+    return false;
+  }
+
+  logout() {
+    this.isAuthenticated = false;
   }
 
   async postTweet(content) {
@@ -22,10 +30,15 @@ class XService {
       throw new Error('管理者認証が必要です');
     }
 
+    if (!this.isAuthenticated) {
+      throw new Error('パスワード認証が必要です');
+    }
+
     try {
       console.log('ツイート投稿開始:', {
         apiUrl: `${this.apiUrl}/api/tweets`,
-        content: content
+        content: content,
+        adminToken: this.adminToken
       });
 
       const response = await axios.post(
@@ -47,7 +60,8 @@ class XService {
       console.error('ツイート投稿エラー詳細:', {
         message: error.message,
         response: error.response?.data,
-        status: error.response?.status
+        status: error.response?.status,
+        headers: error.response?.headers
       });
 
       if (error.response?.status === 401) {
