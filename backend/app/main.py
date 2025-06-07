@@ -32,6 +32,7 @@ async def startup_event():
 
 # CORS設定
 allowed_origins = [
+    settings.FRONTEND_URL,
     "http://localhost:5173",  # Viteのデフォルトポート
     "http://localhost:5174",  # Viteの代替ポート
     "http://127.0.0.1:5173",
