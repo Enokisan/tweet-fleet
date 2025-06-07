@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .api.v1.endpoints import tweets, auth, github
 from .core.config import get_settings
+from .database import Base, engine
 
 settings = get_settings()
 
@@ -11,12 +12,41 @@ app = FastAPI(
     version="0.1.0"
 )
 
+# データベースの初期化
+@app.on_event("startup")
+async def startup_event():
+    """アプリケーション起動時の処理"""
+    print("アプリケーションを開始しています...")
+    
+    # データベーステーブルを作成（存在しない場合のみ）
+    from .database import engine, Base
+    from .models import User, OAuthToken  # モデルをインポートして確実に登録
+    
+    try:
+        print("データベーステーブルを確認中...")
+        Base.metadata.create_all(bind=engine)
+        print("データベーステーブルの確認が完了しました")
+    except Exception as e:
+        print(f"データベース初期化エラー: {e}")
+        # エラーがあっても起動は継続
+
 # CORS設定
+allowed_origins = [
+    "http://localhost:5173",  # Viteのデフォルトポート
+    "http://localhost:5174",  # Viteの代替ポート
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+]
+
+# 設定ファイルからフロントエンドURLが指定されている場合は追加
+if settings.FRONTEND_URL:
+    allowed_origins.append(settings.FRONTEND_URL)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL] if settings.FRONTEND_URL else [],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

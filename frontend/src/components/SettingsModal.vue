@@ -10,15 +10,36 @@
         <div class="auth-section">
           <div v-if="!localIsAuthenticated">
             <p class="auth-description">APIを使用するには認証が必要です</p>
-            <div class="form-group">
-              <input 
-                type="password" 
-                v-model="password" 
-                placeholder="パスワードを入力"
-                @keyup.enter="authenticate"
-              >
-              <button class="auth-button" @click="authenticate">認証</button>
+            
+            <!-- Twitter OAuth認証 -->
+            <div class="auth-option">
+              <h3>Twitter OAuth認証</h3>
+              <p class="option-description">Twitterアカウントで直接ログイン</p>
+              <button class="twitter-oauth-button" @click="authenticateWithTwitter">
+                <i class="fab fa-twitter"></i>
+                Twitterでログイン
+              </button>
             </div>
+            
+            <div class="auth-divider">
+              <span>または</span>
+            </div>
+            
+            <!-- パスワード認証 -->
+            <div class="auth-option">
+              <h3>パスワード認証</h3>
+              <p class="option-description">パスワードでログイン</p>
+              <div class="form-group">
+                <input 
+                  type="password" 
+                  v-model="password" 
+                  placeholder="パスワードを入力"
+                  @keyup.enter="authenticate"
+                >
+                <button class="auth-button" @click="authenticate">認証</button>
+              </div>
+            </div>
+            
             <p v-if="authError" class="error-message">{{ authError }}</p>
           </div>
           
@@ -101,6 +122,38 @@ export default {
         this.authError = error.message || '認証に失敗しました';
       }
     },
+    async authenticateWithTwitter() {
+      try {
+        this.authError = '';
+        
+        // バックエンドから認証URLを取得
+        const apiUrl = import.meta.env.VITE_BACKEND_API_URL;
+        const response = await fetch(`${apiUrl}/api/auth/twitter/oauth`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'OAuth認証URLの取得に失敗しました');
+        }
+        
+        const data = await response.json();
+        
+        if (data.authorization_url) {
+          // 取得した認証URLにリダイレクト
+          window.location.href = data.authorization_url;
+        } else {
+          throw new Error('認証URLが取得できませんでした');
+        }
+        
+      } catch (error) {
+        console.error('Twitter OAuth認証エラー:', error);
+        this.authError = error.message || 'Twitter認証に失敗しました';
+      }
+    },
     logout() {
       xService.logout();
       githubService.logout();
@@ -129,7 +182,7 @@ export default {
   background-color: white;
   border-radius: 8px;
   width: 90%;
-  max-width: 400px;
+  max-width: 450px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
@@ -168,7 +221,72 @@ export default {
 }
 
 .auth-description {
-  margin: 0 0 16px 0;
+  margin: 0 0 20px 0;
+  color: #666;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.auth-option {
+  margin-bottom: 20px;
+}
+
+.auth-option h3 {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+  color: #333;
+}
+
+.option-description {
+  margin: 0 0 12px 0;
+  color: #666;
+  font-size: 0.875rem;
+}
+
+.twitter-oauth-button {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: #1da1f2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.twitter-oauth-button:hover {
+  background-color: #1a91da;
+}
+
+.twitter-oauth-button i {
+  font-size: 1.1rem;
+}
+
+.auth-divider {
+  position: relative;
+  text-align: center;
+  margin: 20px 0;
+}
+
+.auth-divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #ddd;
+}
+
+.auth-divider span {
+  background-color: #f8f9fa;
+  padding: 0 12px;
   color: #666;
   font-size: 0.875rem;
 }

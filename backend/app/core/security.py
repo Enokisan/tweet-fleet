@@ -13,7 +13,7 @@ JWT_EXPIRATION_DELTA = timedelta(hours=1)
 
 security = HTTPBearer()
 
-def create_access_token() -> str:
+def create_access_token(data: dict = None) -> str:
     """
     JWTトークンを生成
     """
@@ -23,6 +23,10 @@ def create_access_token() -> str:
         "iat": datetime.utcnow(),
         "sub": "admin"
     }
+    
+    if data:
+        to_encode.update(data)
+    
     return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:

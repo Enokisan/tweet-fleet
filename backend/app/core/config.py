@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"  # デフォルト値として残す
     BACKEND_URL: Optional[str] = None
     FRONTEND_URL: Optional[str] = None
+    ENVIRONMENT: str = "development"  # development, production
     
     # 管理者認証
     ADMIN_PASSWORD: str
@@ -22,10 +23,22 @@ class Settings(BaseSettings):
     TWITTER_ACCESS_TOKEN: Optional[str] = None
     TWITTER_ACCESS_TOKEN_SECRET: Optional[str] = None
     
+    # Twitter OAuth設定
+    TWITTER_CLIENT_ID: Optional[str] = None
+    TWITTER_CLIENT_SECRET: Optional[str] = None
+    
     # GitHub設定
     GITHUB_TOKEN: Optional[str] = None
     GITHUB_REPO: Optional[str] = None
     GITHUB_DIRECTORY_PATH: str = ""
+    
+    # 動的なリダイレクトURI設定
+    @property
+    def TWITTER_REDIRECT_URI(self) -> str:
+        if self.BACKEND_URL:
+            return f"{self.BACKEND_URL}/api/auth/twitter/callback"
+        else:
+            return "http://localhost:3000/api/auth/twitter/callback"
     
     class Config:
         env_file = str(Path(__file__).parent.parent.parent / ".env")
